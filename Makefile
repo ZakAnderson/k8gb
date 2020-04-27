@@ -13,6 +13,12 @@ OHMYGLB_COREDNS_IP ?= kubectl get svc ohmyglb-coredns -n ohmyglb -o custom-colum
 up-local: create-test-ns
 	kubectl apply -f ./deploy/crds/ohmyglb.absa.oss_gslbs_crd.yaml
 	kubectl apply -f ./deploy/crds/ohmyglb.absa.oss_v1beta1_gslb_cr.yaml
+	operator-sdk run --local --namespace=test-gslb
+
+.PHONY: debug-local
+debug-local: create-test-ns
+	kubectl apply -f ./deploy/crds/ohmyglb.absa.oss_gslbs_crd.yaml
+	kubectl apply -f ./deploy/crds/ohmyglb.absa.oss_v1beta1_gslb_cr.yaml
 	operator-sdk run --local --namespace=test-gslb --enable-delve
 
 .PHONY: lint
