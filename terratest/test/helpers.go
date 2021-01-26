@@ -13,11 +13,13 @@ import (
 	"github.com/gruntwork-io/terratest/modules/retry"
 	"github.com/gruntwork-io/terratest/modules/shell"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// GetIngressIPs returns slice of IP's related to ingress
 func GetIngressIPs(t *testing.T, options *k8s.KubectlOptions, ingressName string) []string {
 	var ingressIPs []string
 	ingress := k8s.GetIngress(t, options, ingressName)
@@ -27,6 +29,7 @@ func GetIngressIPs(t *testing.T, options *k8s.KubectlOptions, ingressName string
 	return ingressIPs
 }
 
+// Dig gets sorted slice of records related to dnsName
 func Dig(t *testing.T, dnsServer string, dnsPort int, dnsName string) ([]string, error) {
 	port := fmt.Sprintf("-p%v", dnsPort)
 	dnsServer = fmt.Sprintf("@%s", dnsServer)
@@ -44,7 +47,7 @@ func Dig(t *testing.T, dnsServer string, dnsPort int, dnsName string) ([]string,
 	return digAppSlice, nil
 }
 
-// Concept is borrowed from terratest/modules/retry and extended to our use case
+// DoWithRetryWaitingForValueE Concept is borrowed from terratest/modules/retry and extended to our use case
 func DoWithRetryWaitingForValueE(t *testing.T, actionDescription string, maxRetries int, sleepBetweenRetries time.Duration, action func() ([]string, error), expectedResult []string) ([]string, error) {
 	var output []string
 	var err error
@@ -53,8 +56,8 @@ func DoWithRetryWaitingForValueE(t *testing.T, actionDescription string, maxRetr
 
 		output, err = action()
 		if err != nil {
-			return output, nil
 			t.Logf("%s returned an error: %s. Sleeping for %s and will try again.", actionDescription, err.Error(), sleepBetweenRetries)
+			return output, nil
 		}
 
 		if reflect.DeepEqual(output, expectedResult) {
@@ -77,7 +80,7 @@ func createGslbWithHealthyApp(t *testing.T, options *k8s.KubectlOptions, kubeRes
 
 	helmRepoAdd := shell.Command{
 		Command: "helm",
-		Args:    []string{"repo", "add", "podinfo", "https://stefanprodan.github.io/podinfo"},
+		Args:    []string{"repo", "add", "--force-update", "podinfo", "https://stefanprodan.github.io/podinfo"},
 	}
 
 	helmRepoUpdate := shell.Command{
@@ -88,6 +91,7 @@ func createGslbWithHealthyApp(t *testing.T, options *k8s.KubectlOptions, kubeRes
 	shell.RunCommand(t, helmRepoUpdate)
 	helmOptions := helm.Options{
 		KubectlOptions: options,
+		Version:        "4.0.6",
 	}
 	helm.Install(t, &helmOptions, "podinfo/podinfo", "frontend")
 
@@ -116,13 +120,15 @@ func assertGslbStatus(t *testing.T, options *k8s.KubectlOptions, gslbName string
 	t.Helper()
 
 	actualHealthStatus := func() ([]string, error) {
-		ohmyglbServiceHealth, err := k8s.RunKubectlAndGetOutputE(t, options, "get", "gslb", gslbName, "-o", "jsonpath='{.status.serviceHealth}'")
+		//-o custom-columns=SERVICESTATUS:.status.serviceHealth --no-headers
+		k8gbServiceHealth, err := k8s.RunKubectlAndGetOutputE(t, options, "get", "gslb", gslbName, "-o",
+			"custom-columns=SERVICESTATUS:.status.serviceHealth", "--no-headers")
 		if err != nil {
-			t.Errorf("Failed to get ohmyglb status with kubectl (%s)", err)
+			t.Logf("Failed to get k8gb status with kubectl (%s)", err)
 		}
-		return []string{ohmyglbServiceHealth}, nil
+		return []string{k8gbServiceHealth}, nil
 	}
-	expectedHealthStatus := []string{fmt.Sprintf("'map[%s]'", serviceStatus)}
+	expectedHealthStatus := []string{fmt.Sprintf("map[%s]", serviceStatus)}
 	_, err := DoWithRetryWaitingForValueE(
 		t,
 		"Wait for expected ServiceHealth status...",
@@ -131,4 +137,11 @@ func assertGslbStatus(t *testing.T, options *k8s.KubectlOptions, gslbName string
 		actualHealthStatus,
 		expectedHealthStatus)
 	require.NoError(t, err)
+}
+
+func assertGslbSpec(t *testing.T, options *k8s.KubectlOptions, gslbName string, specPath string, expectedValue string) {
+	t.Helper()
+	actualValue, err := k8s.RunKubectlAndGetOutputE(t, options, "get", "gslb", gslbName, "-o", fmt.Sprintf("custom-columns=SERVICESTATUS:%s", specPath), "--no-headers")
+	require.NoError(t, err)
+	assert.Equal(t, expectedValue, actualValue)
 }

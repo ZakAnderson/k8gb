@@ -7,12 +7,41 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v1
+      - name: Install golang linting tools
+        run: GO111MODULE=on go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.32.0
+      - name: Operator image build and push
+        env:
+          DOCKER_USER: ${{ secrets.DOCKER_USER }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          export PATH=~/go/bin:$PATH
+          docker login -u "${DOCKER_USER}" -p "${DOCKER_PASSWORD}"
+          make docker-build
+          make docker-push
       - uses: dave-mcconnell/helm-gh-pages-microservices@master
         with:
           access-token: ${{ secrets.CR_TOKEN }}
           source-charts-folder: 'chart'
-          destination-repo: absaoss/ohmyglb
+          destination-repo: absaoss/k8gb
           destination-branch: gh-pages
+      - name: Create single node k3s cluster
+        uses: AbsaOSS/k3d-action@v1.1.0
+        with:
+          cluster-name: "test-gslb1"
+          use-default-registry: false
+          args: >-
+            -p "80:80@agent[0]"
+            -p "443:443@agent[0]"
+            -p "5053:53/udp@agent[0]"
+            --agents 1
+            --no-lb
+            --network k3d-action-bridge-network
+            --k3s-server-arg "--no-deploy=traefik,servicelb,metrics-server"
+      - name: Smoke test helm installation
+        run: |
+          helm repo add k8gb https://absaoss.github.io/k8gb/
+          helm repo update
+          helm -n k8gb upgrade -i k8gb k8gb/k8gb --wait --create-namespace --version=$(make version)

@@ -1,0 +1,33 @@
+name: Github Pages
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '**.md'
+      - 'docs/**'
+
+jobs:
+  publish:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Copy new docs to gh-pages
+        run: |
+          git checkout gh-pages
+          git checkout ${GITHUB_REF##*/} README.md
+          git checkout ${GITHUB_REF##*/} CONTRIBUTING.md
+          git checkout ${GITHUB_REF##*/} CHANGELOG.md
+          git checkout ${GITHUB_REF##*/} docs
+      - name: Push to gh-pages
+        uses: EndBug/add-and-commit@v5
+        with:
+          author_name: ${{ github.actor }}
+          author_email: ${{ github.actor }}@users.noreply.github.com
+          message: "Documentation sync from master"
+          branch: gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

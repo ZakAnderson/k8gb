@@ -1,251 +1,97 @@
-# Oh My GLB
+# K8GB - Kubernetes Global Balancer
 
 ## Project Health
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Build Status](https://github.com/AbsaOSS/ohmyglb/workflows/build/badge.svg)](https://github.com/AbsaOSS/ohmyglb/actions?query=workflow%3A%22Golang+lint+and+test%22)
-[![Gosec](https://github.com/AbsaOSS/ohmyglb/workflows/Gosec/badge.svg)](https://github.com/AbsaOSS/ohmyglb/actions?query=workflow%3AGosec)
-[![Terratest Status](https://github.com/AbsaOSS/ohmyglb/workflows/Terratest/badge.svg)](https://github.com/AbsaOSS/ohmyglb/actions)
-[![Go Report Card](https://goreportcard.com/badge/github.com/AbsaOSS/ohmyglb)](https://goreportcard.com/report/github.com/AbsaOSS/ohmyglb)
-[![Helm Publish](https://github.com/AbsaOSS/ohmyglb/workflows/Helm%20Publish/badge.svg)](https://github.com/AbsaOSS/ohmyglb/actions?query=workflow%3A%22Helm+Publish%22)
-[![Docker Pulls](https://img.shields.io/docker/pulls/absaoss/ohmyglb)](https://hub.docker.com/r/absaoss/ohmyglb)
+[![Build Status](https://github.com/AbsaOSS/k8gb/workflows/build/badge.svg)](https://github.com/AbsaOSS/k8gb/actions?query=workflow%3A%22Golang+lint+and+test%22)
+[![Terratest Status](https://github.com/AbsaOSS/k8gb/workflows/Terratest/badge.svg)](https://github.com/AbsaOSS/k8gb/actions?query=workflow%3ATerratest)
+[![Gosec](https://github.com/AbsaOSS/k8gb/workflows/Gosec/badge.svg)](https://github.com/AbsaOSS/k8gb/actions?query=workflow%3AGosec)
+[![CodeQL](https://github.com/AbsaOSS/k8gb/workflows/CodeQL/badge.svg)](https://github.com/AbsaOSS/k8gb/actions?query=workflow%3ACodeQL)
+[![Go Report Card](https://goreportcard.com/badge/github.com/AbsaOSS/k8gb)](https://goreportcard.com/report/github.com/AbsaOSS/k8gb)
+[![Helm Publish](https://github.com/AbsaOSS/k8gb/workflows/Helm%20Publish/badge.svg)](https://github.com/AbsaOSS/k8gb/actions?query=workflow%3A%22Helm+Publish%22)
+[![Docker Pulls](https://img.shields.io/docker/pulls/absaoss/k8gb)](https://hub.docker.com/r/absaoss/k8gb)
 
 A Global Service Load Balancing solution with a focus on having cloud native qualities and work natively in a Kubernetes context.
 
-- [Motivation and Architecture](#motivation-and-architecture)
-- [Installation and Configuration](#installation-and-configuration)
-    - [Installation with Helm3](#installation-with-helm3)
-        - [Add ohmyglb Helm repository](#add-ohmyglb-helm-repository)
-    - [Local Playground Install](#local-playground-install)
-        - [Environment prerequisites](#environment-prerequisites)
-        - [Running project locally](#running-project-locally)
-        - [Verify installation](#verify-installation)
-        - [Run integration tests](#run-integration-tests)
-        - [Cleaning](#cleaning)
-- [Sample demo](#sample-demo)
-    - [Round Robin](#round-robin)
-    - [Failover](#failover)    
+
+![GSLB Failover Demo](https://github.com/AbsaOSS/k8gb/raw/gh-pages/img/gslb.png)
+*Just a single Gslb CRD to enable the Global Load Balancing*
+
+Global load balancing, commonly referred to as GSLB (Global Server Load Balancing) solutions, have typically been the domain of proprietary network software and hardware vendors and installed and managed by siloed network teams.
+
+k8gb is a completely open source, cloud native, global load balancing solution for Kubernetes.
+
+k8gb focuses on load balancing traffic across geographically dispersed Kubernetes clusters using multiple load balancing strategies to meet requirements such as region failover for high availability.
+
+Global load balancing for any Kubernetes Service can now be enabled and managed by any operations or development teams in the same Kubernetes native way as any other custom resource.
+
+## Key Differentiators
+
+* Load balancing is based on timeproof DNS protocol which is perfect for global scope and extremely reliable
+* No dedicated management cluster and no single point of failure
+* Kubernetes native application health checks utilizing status of Liveness and Readiness probes for load balancing decisions
+* Configuration with a single Kubernetes CRD of Gslb kind
+
+## Quick Start
+
+Simply run
+
+```sh
+make deploy-full-local-setup
+```
+
+It will deploy two local [k3s](https://k3s.io/) clusters via [k3d](https://k3d.io/) with
+k8gb, test application and two sample Gslb resources on top.    
+
+This setup is adapted for local scenario and works without external DNS provider dependency.
+
+Consult with [local playground](/docs/local.md) documentation to learn all the details of experimenting with local setup.
 
 ## Motivation and Architecture
 
-Please see the extended documentation [here](/docs/index.md)
+k8gb was born out of need for an open source, cloud native GSLB solution at Absa bank in South Africa.
 
-## Installation and Configuration
+As part of the bank's wider container adoption running multiple, geographically dispersed Kubernetes clusters, the need for a global load balancer that was driven from the health of Kubernetes Services was required and for which there did not seem to be an existing solution.
 
-### Installation with Helm3
+Yes, there are proprietary network software and hardware vendors with GSLB solutions and products, however, these were costly, heavy weight in terms of complexity and adoption and in most cases were not Kubernetes native, requiring dedicated hardware or software to be run outside of Kubernetes.
 
-#### Add ohmyglb Helm repository
+This was the problem we set out to solve with k8gb.
 
-```sh
-$ helm repo add ohmyglb https://absaoss.github.io/ohmyglb/
-$ helm repo update
-$ helm install ohmyglb ohmyglb/ohmyglb
-```
+Born as a completely open source project and following the popular Kubernetes operator pattern, k8gb can be installed in a Kubernetes cluster and via a Gslb custom resource, can provide independent GSLB capability to any Ingress or Service in the cluster, without the need for handoffs and coordination between dedicated network teams.
 
-See [values.yaml](https://github.com/AbsaOSS/ohmyglb/blob/master/chart/ohmyglb/values.yaml)
-for customization options.
+k8gb commoditises GSLB for Kubernetes, putting teams in complete control of exposing Services across geographically dispersed Kubernetes clusters across public and private clouds.
 
-### Local Playground Install
+k8gb requires no specialised software or hardware, relying completely on other OSS/CNCF projects, has no single point of failure and fits in with any existing Kubernetes deployment workflow (e.g. GitOps, Kustomize, Helm, etc.) or tools.
 
-#### Environment prerequisites
+Please see the extended architecture documentation [here](/docs/index.md)
 
- - [install **GO 1.14**](https://golang.org/dl/)
- 
- - [install **GIT**](https://git-scm.com/downloads)
-    
- - install **gnu-sed** if you don't have it
-    - If you are on a Mac, install sed by Homebrew
-    ```shell script
-    brew install gnu-sed
-    ```
-   
- - [install **Docker**](https://docs.docker.com/get-docker/)
-    - ensure you are able to push/pull from your docker registry
-    - to run multiple clusters reserve 8GB of memory
-    
-      ![](docs/images/docker_settings.png)
-      <div>
-        <sup>above screenshot is for <strong>Docker for Mac</strong> and that options for other Docker distributions may vary</sup>
-      </div>
+Internal k8gb architecture and its components are described [here](/docs/components.md)
 
- - [install **Kubectl**](https://kubernetes.io/docs/tasks/tools/install-kubectl/) to operate clusters
+## Installation and Configuration Tutorials
 
- - [install **Helm3**](https://helm.sh/docs/intro/install/) to get charts
+* [General deployment with Infoblox integration](/docs/deploy_infoblox.md)
+* [AWS based deployment with Route53 integration](/docs/deploy_route53.md)
+* [AWS based deployment with NS1 integration](/docs/deploy_ns1.md)
+* [Local playground for testing and development](/docs/local.md)
+* [Metrics](/docs/metrics.md)
+* [Ingress annotations](/docs/ingress_annotations.md)
+* [Integration with Admiralty](/docs/admiralty.md)
 
- - [install **kind**](https://kind.sigs.k8s.io/) as tool for running local Kubernetes clusters
-    - follow https://kind.sigs.k8s.io/docs/user/quick-start/
+## Production Readiness
+
+k8gb is very well tested with the following environment options
+
+| Type                             | Implementation                                                          |
+|----------------------------------|-------------------------------------------------------------------------|
+| Kubernetes Version               | >= 1.15                                                                 |
+| Environment                      | Self-managed, AWS(EKS) [*](#clarify)                                |
+| Ingress Controller               | NGINX, AWS Load Balancer Controller [*](#clarify)                       |
+| EdgeDNS                          | Infoblox, Route53, NS1                                                  |
+
+<a name="clarify"></a>* We only mention solutions where we have tested and verified a k8gb installation.
+If your Kubernetes version or Ingress controller is not included in the table above, it does not mean that k8gb will not work for you. k8gb is architected to run on top of any compliant Kubernetes cluster and Ingress controller.
 
 
-#### Running project locally
+## Contributing
 
-To spin-up a local environment using two Kind clusters and deploy a test application to both clusters, execute the command below: 
-```shell script
-make deploy-full-local-setup 
-```
-
-
-#### Verify installation
-
-If local setup runs well, check if clusters are correctly installed 
-
-```shell script
-kubectl cluster-info --context kind-test-gslb1 && kubectl cluster-info --context kind-test-gslb2
-```
-
-Check if Etcd cluster is healthy
-```shell script
-kubectl run --rm -i --tty --env="ETCDCTL_API=3" --env="ETCDCTL_ENDPOINTS=http://etcd-cluster-client:2379" --namespace ohmyglb etcd-test --image quay.io/coreos/etcd --restart=Never -- /bin/sh -c 'etcdctl  member list' 
-```
-as expected output you will see three started pods: `etcd-cluster`
-
-```shell script
-...
-c3261c079f6990a7, started, etcd-cluster-5bcpvf6ngz, http://etcd-cluster-5bcpvf6ngz.etcd-cluster.ohmyglb.svc:2380, http://etcd-cluster-5bcpvf6ngz.etcd-cluster.ohmyglb.svc:2379
-eb6ead15c2b92606, started, etcd-cluster-6d8pxtpklm, http://etcd-cluster-6d8pxtpklm.etcd-cluster.ohmyglb.svc:2380, http://etcd-cluster-6d8pxtpklm.etcd-cluster.ohmyglb.svc:2379
-eed5a40bbfb6ee97, started, etcd-cluster-xsjmwdkdf8, http://etcd-cluster-xsjmwdkdf8.etcd-cluster.ohmyglb.svc:2380, http://etcd-cluster-xsjmwdkdf8.etcd-cluster.ohmyglb.svc:2379
-...
-```
-
-Cluster [test-gslb1](deploy/kind/cluster.yaml) is exposing external DNS on default port `:5053` 
-while [test-gslb2](deploy/kind/cluster2.yaml) on port `:5054`.
-```shell script
-dig @localhost localtargets.app3.cloud.example.com -p 5053 && dig -p 5054 @localhost localtargets.app3.cloud.example.com
-```
-As expected result you should see **six A records** divided between nodes of both clusters.
-```shell script
-...
-...
-;; ANSWER SECTION:
-localtargets.app3.cloud.example.com. 30 IN A    172.17.0.2
-localtargets.app3.cloud.example.com. 30 IN A    172.17.0.5
-localtargets.app3.cloud.example.com. 30 IN A    172.17.0.3
-...
-...
-localtargets.app3.cloud.example.com. 30 IN A    172.17.0.8
-localtargets.app3.cloud.example.com. 30 IN A    172.17.0.6
-localtargets.app3.cloud.example.com. 30 IN A    172.17.0.7
-```
-Both clusters have [podinfo](https://github.com/stefanprodan/podinfo) installed on the top. 
-Run following command and check if you get two json responses.
-```shell script
-curl localhost:80 -H "Host:app3.cloud.example.com" && curl localhost:81 -H "Host:app3.cloud.example.com"
-```
-
-#### Run integration tests
-
-There is wide range of scenarios which **GSLB** provides and all of them are covered within [tests](terratest).
-To check whether everything is running properly execute [terratests](https://terratest.gruntwork.io/) :
-  
-```shell script
-make terratest
-```
-
-#### Cleaning
-
-Clean up your local development clusters with
-  
-```shell script
-make destroy-full-local-setup
-```
-
-
-## Sample demo
-
-### Round Robin
-
-Both clusters have [podinfo](https://github.com/stefanprodan/podinfo) installed on the top where each 
-cluster has been tagged to serve a different region. In this demo we will hit podinfo by `wget -qO - app3.cloud.example.com` and depending 
-on region will podinfo return **us** or **eu**. In current round robin implementation are ip addresses randomly picked. 
-See [Gslb manifest with round robin strategy](/deploy/crds/ohmyglb.absa.oss_v1beta1_gslb_cr.yaml)
-
-Run several times command below and watch `message` field.
-```shell script
-make test-round-robin
-```
-As expected result you should see podinfo message changing
-
-```text
-{
-  "hostname": "frontend-podinfo-856bb46677-8p45m",
-  ...
-  "message": "us",
-  ...
-}
-```
-```text
-{
-  "hostname": "frontend-podinfo-856bb46677-8p45m",
-  ...
-  "message": "eu",
-  ...
-}
-```
-
-### Failover
-
-Both clusters have [podinfo](https://github.com/stefanprodan/podinfo) installed on the top where each 
-cluster has been tagged to serve a different region. In this demo we will hit podinfo by `wget -qO - failover.cloud.example.com` and depending
-on whether podinfo is running inside the cluster it returns only **eu** or **us**.
-See [Gslb manifest with failover strategy](/deploy/crds/ohmyglb.absa.oss_v1beta1_gslb_cr_failover.yaml)
-
-Switch GLSB to failover mode:
-```shell script
-make init-failover
-```
-Now both clusters are running in failover mode and podinfo is running on both of them.
-Run several times command below and watch `message` field.
-```shell script
-make test-failover
-```
-You will see only **eu** podinfo is responsive:
-```text
-{
-  "hostname": "frontend-podinfo-856bb46677-8p45m",
-  ...
-  "message": "eu",
-  ...
-}
-```
-Stop podinfo on **current (eu)** cluster:
-```
-make stop-test-app
-```
-Several times hit application again
-```shell script
-make test-failover
-```
-As expected result you should see only podinfo from **second cluster (us)** is responding:
-```text
-{
-  "hostname": "frontend-podinfo-856bb46677-v5nll",
-  ...
-  "message": "us",
-  ...
-}
-```
-It might happen that podinfo will be unavailable for a while due to 
-[DNS sync interval](https://github.com/AbsaOSS/ohmyglb/pull/81) and default ohmyglb DNS TTL of 30 seconds  
-```text
-wget: server returned error: HTTP/1.1 503 Service Temporarily Unavailable
-```
-Start podinfo again on **current (eu)** cluster:
-```shell script
-make start-test-app
-```
-and hit several times hit podinfo:
-```shell script
-make test-failover 
-```
-After DNS sync interval is over **eu** will be back
-```text
-{
-  "hostname": "frontend-podinfo-6945c9ddd7-xksrc",
-  ...
-  "message": "eu",
-  ...
-}
-```
-Optionally you can switch GLSB back to round-robin mode
-```shell script
-make init-round-robin
-```
+See [CONTRIBUTING](/CONTRIBUTING.md)

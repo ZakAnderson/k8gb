@@ -1,6 +1,0 @@
-dependencies:
-- name: coredns
-  repository: https://kubernetes-charts.storage.googleapis.com
-  version: 1.8.4
-digest: sha256:e7b93a9c2532192e609ba4fb56f240e1a61032e8b1ee746a73bdf0befa298f01
-generated: "2020-04-20T17:17:40.352258+02:00"
